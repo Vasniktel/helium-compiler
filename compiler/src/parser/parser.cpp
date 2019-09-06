@@ -360,10 +360,10 @@ vector<unique_ptr<AstNode>> Parser::Parse(string_view source, ErrorReporter& rep
   });
 }
 
-#define PARSE_EXPRESSION(var, precedence) \
+#define PARSE_EXPRESSION(var, precedence, skip_eol) \
     do { \
       panic_mode_ = false; \
-      SkipEolTokens(); \
+      if ((skip_eol)) SkipEolTokens(); \
       var = Expression(precedence); \
       assert(reporter_.HadErrors() || var); \
     } while (false)
@@ -444,7 +444,7 @@ unique_ptr<Expr> Parser::Literal(bool can_assign) {
   if (can_assign && token.type == TT::kIdentifier &&
       MatchToken(TT::kEqual, false)) {
     unique_ptr<Expr> expr;
-    PARSE_EXPRESSION(expr, Precedence::kAssign);
+    PARSE_EXPRESSION(expr, Precedence::kAssign, false);
     return CONSTRUCT_NODE(make_unique<AssignExpr>(move(literal), move(expr)));
   }
 
@@ -456,7 +456,7 @@ unique_ptr<Expr> Parser::Grouping(bool can_assign) {
   assert(!panic_mode_);
 
   unique_ptr<Expr> expr;
-  PARSE_EXPRESSION(expr, Precedence::kAssign);
+  PARSE_EXPRESSION(expr, Precedence::kAssign, true);
 
   ConsumeToken(TT::kRightParen, true,
       "Missing closing )");
@@ -469,7 +469,7 @@ unique_ptr<AstNode> Parser::Variable() {
   assert(!panic_mode_);
 
   // TODO: add support for immutable vars
-  ConsumeToken(TT::kIdentifier, true,
+  ConsumeToken(TT::kIdentifier, false,
       "Variable name must be an identifier");
 
   auto name = prev_token_;
@@ -484,7 +484,7 @@ unique_ptr<AstNode> Parser::Variable() {
   auto type_token = prev_token_;
   unique_ptr<Expr> expr;
   if (MatchToken(TT::kEqual, true)) {
-    PARSE_EXPRESSION(expr, Precedence::kAssign);
+    PARSE_EXPRESSION(expr, Precedence::kAssign, false);
   }
 
   return CONSTRUCT_NODE(make_unique<VariableStmt>(name, type_token, move(expr)));
@@ -503,19 +503,19 @@ unique_ptr<Expr> Parser::If(bool can_assign) {
   IGNORE(can_assign);
   assert(!panic_mode_);
 
-  ConsumeToken(TT::kLeftParen, true,
+  ConsumeToken(TT::kLeftParen, false,
       "Missing ( before condition in 'if' expression");
 
   unique_ptr<Expr> condition, then_branch, else_branch;
-  PARSE_EXPRESSION(condition, Precedence::kAssign);
+  PARSE_EXPRESSION(condition, Precedence::kAssign, true);
 
   ConsumeToken(TT::kRightParen, true,
       "Missing ) after condition in 'if' expression");
 
-  PARSE_EXPRESSION(then_branch, Precedence::kAssign);
+  PARSE_EXPRESSION(then_branch, Precedence::kAssign, false);
 
   if (MatchToken(TT::kElse, true)) {
-    PARSE_EXPRESSION(else_branch, Precedence::kAssign);
+    PARSE_EXPRESSION(else_branch, Precedence::kAssign, false);
   }
 
   return CONSTRUCT_NODE(make_unique<IfExpr>(
@@ -526,16 +526,16 @@ unique_ptr<Expr> Parser::While(bool can_assign) {
   IGNORE(can_assign);
   assert(!panic_mode_);
 
-  ConsumeToken(TT::kLeftParen, true,
+  ConsumeToken(TT::kLeftParen, false,
       "Missing ( before condition in 'if' expression");
 
   unique_ptr<Expr> condition, body;
-  PARSE_EXPRESSION(condition, Precedence::kAssign);
+  PARSE_EXPRESSION(condition, Precedence::kAssign, true);
 
   ConsumeToken(TT::kRightParen, true,
       "Missing ) after condition in 'if' expression");
 
-  PARSE_EXPRESSION(body, Precedence::kAssign);
+  PARSE_EXPRESSION(body, Precedence::kAssign, false);
 
   return CONSTRUCT_NODE(make_unique<WhileExpr>(move(condition), move(body)));
 }

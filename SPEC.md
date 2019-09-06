@@ -50,7 +50,7 @@ Stmt
 
 // TODO: make type specifier optional
 VarStmt
-: 'var' EOL* IDENTIFIER EOL* ':' EOL* Type ( EOL* '=' EOL* Expr)?
+: 'var' IDENTIFIER EOL* ':' EOL* Type ( EOL* '=' Expr)?
 ;
 
 Type
@@ -81,28 +81,28 @@ Unary
 ;
 
 Primary
-: Assignable
-| Identifier
+: Identifier
 | Integer
 | Real
 | String
 | Bool
 | Char
+| '(' EOL* Expr EOL* ')'
 | IfExpr
 | BlockExpr
 | WhileExpr
 ;
 
 Assignable
-: IDENTIFIER
+: Identifier
 ;
 
 IfExpr
-: 'if' '(' Expr ')' Expr ('else' Expr)?
+: 'if' '(' EOL* Expr EOL* ')' Expr (EOL* 'else' Expr)?
 ;
 
 BlockExpr
-: '{' Stmts? '}'
+: '{' EOL* Stmts? EOL* '}'
 ;
 
 Stmts
@@ -111,6 +111,6 @@ Stmts
 ;
 
 WhileExpr
-: 'while' '(' Expr ')' Expr
+: 'while' '(' EOL* Expr EOL* ')' Expr
 ;
 ```
