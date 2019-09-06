@@ -36,7 +36,7 @@ Program : EOL* Decls? EOL* EOF ;
 
 Decls
 : Decl
-| Decls EOL Decl
+| Decls EOL+ Decl
 ;
 
 Decl
@@ -107,7 +107,7 @@ BlockExpr
 
 Stmts
 : Stmt
-| Stmts EOL Stmt
+| Stmts EOL+ Stmt
 ;
 
 WhileExpr
