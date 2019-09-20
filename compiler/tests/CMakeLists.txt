@@ -36,7 +36,9 @@ endif()
 project(compiler-tests)
 
 add_executable(compiler-tests
-        parser.cpp)
+        parser.cpp
+        interner.cpp
+        type_check.cpp)
 
 target_include_directories(compiler-tests
         PRIVATE

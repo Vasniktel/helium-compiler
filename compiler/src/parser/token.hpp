@@ -26,6 +26,7 @@ enum class TokenType {
   kElse,
   kTrue,
   kFalse,
+  kUnit,
 
   kPlus,
   kMinus,

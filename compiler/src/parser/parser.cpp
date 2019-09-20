@@ -15,7 +15,6 @@ using ::std::vector;
 using ::absl::string_view;
 using ::absl::make_unique;
 using ::absl::flat_hash_map;
-using ::std::initializer_list;
 using TT = TokenType;
 
 bool IsAlpha(char c) {
@@ -34,7 +33,7 @@ bool IsAlNum(char c) {
 
 }
 
-Parser::Parser(string_view source, ErrorReporter& reporter)
+Parser::Parser(string_view source, ErrorReporter& reporter, Interner& interner)
 : source_(source),
   size_(static_cast<int>(source.size())),
   curr_char_(0),
@@ -44,7 +43,8 @@ Parser::Parser(string_view source, ErrorReporter& reporter)
   curr_token_(Token::ParsedAs(*this, TT::kEof)),
   prev_token_(Token::ParsedAs(*this, TT::kEof)),
   panic_mode_(false),
-  reporter_(reporter)
+  reporter_(reporter),
+  interner_(interner)
 {}
 
 char Parser::AdvanceChar() {
@@ -200,12 +200,13 @@ void Parser::ParseNumber() {
 
 void Parser::ParseIdentifier() {
   static const flat_hash_map<string_view, TT> keywords = {
-      {"var", TokenType::kVar},
-      {"while", TokenType::kWhile},
-      {"if", TokenType::kIf},
-      {"else", TokenType::kElse},
-      {"true", TokenType::kTrue},
-      {"false", TokenType::kFalse}
+      {"var",   TT::kVar},
+      {"while", TT::kWhile},
+      {"if",    TT::kIf},
+      {"else",  TT::kElse},
+      {"true",  TT::kTrue},
+      {"false", TT::kFalse},
+      {"unit",  TT::kUnit}
   };
 
   while (!IsAtEnd() && IsAlNum(PeekChar())) {
@@ -313,6 +314,7 @@ const Parser::Rule Parser::rules_[] = {
     [TT(kElse)]  = {nullptr,          nullptr, Precedence::kNone},
     [TT(kTrue)]  = {&Parser::Literal, nullptr, Precedence::kNone},
     [TT(kFalse)] = {&Parser::Literal, nullptr, Precedence::kNone},
+    [TT(kUnit)]  = {&Parser::Literal, nullptr, Precedence::kNone},
 
     [TT(kPlus)]       = {&Parser::Unary,    &Parser::Binary, Precedence::kAdd},
     [TT(kMinus)]      = {&Parser::Unary,    &Parser::Binary, Precedence::kAdd},
@@ -333,7 +335,7 @@ vector<unique_ptr<T>> Parser::Sequence(TT separator, TT closing, F parser) {
 
   vector<unique_ptr<T>> result;
   while (true) {
-    auto node = parser(); // TODO: maybe use lambdas
+    auto node = parser();
     if (node) result.emplace_back(move(node));
 
     bool has_separator = MatchToken(separator, separator != TT::kEol);
@@ -352,8 +354,9 @@ vector<unique_ptr<T>> Parser::Sequence(TT separator, TT closing, F parser) {
   return result;
 }
 
-vector<unique_ptr<AstNode>> Parser::Parse(string_view source, ErrorReporter& reporter) {
-  Parser parser(source, reporter);
+vector<unique_ptr<AstNode>> Parser::Parse(
+    string_view source, ErrorReporter& reporter, Interner& interner) {
+  Parser parser(source, reporter, interner);
   parser.NextToken();
   return parser.Sequence<AstNode>(TT::kEol, TT::kEof, [&parser] {
     return parser.Statement();
@@ -464,30 +467,39 @@ unique_ptr<Expr> Parser::Grouping(bool can_assign) {
   return CONSTRUCT_NODE(move(expr));
 }
 
+// TODO
+unique_ptr<Type> Parser::ParseType(bool ignore_eol) {
+  ConsumeToken(TT::kIdentifier, ignore_eol, "Invalid type syntax");
+  return make_unique<SingleType>(interner_.Intern(prev_token_.lexeme));
+}
+
+unique_ptr<Pattern> Parser::ParsePattern(bool ignore_eol) {
+  if (MatchToken(TT::kIdentifier, ignore_eol)) {
+    auto name = prev_token_;
+    unique_ptr<Type> type;
+    if (MatchToken(TT::kColon, true)) {
+      type = ParseType(true);
+    }
+
+    return make_unique<TypedPattern>(name, move(type));
+  }
+
+  ParserError("Unexpected token: invalid pattern", prev_token_);
+  return nullptr;
+}
+
 unique_ptr<AstNode> Parser::Variable() {
   // panic mode must have been cleared up by the caller
   assert(!panic_mode_);
 
-  // TODO: add support for immutable vars
-  ConsumeToken(TT::kIdentifier, false,
-      "Variable name must be an identifier");
+  auto pattern = ParsePattern(false);
 
-  auto name = prev_token_;
-  // TODO: make type spec optional
-  ConsumeToken(TT::kColon, true,
-      "Missing colon before type specifier");
-
-  // TODO: make proper type identifiers
-  ConsumeToken(TT::kIdentifier, true,
-      "Type name must be an identifier");
-
-  auto type_token = prev_token_;
   unique_ptr<Expr> expr;
   if (MatchToken(TT::kEqual, true)) {
     PARSE_EXPRESSION(expr, Precedence::kAssign, false);
   }
 
-  return CONSTRUCT_NODE(make_unique<VariableStmt>(name, type_token, move(expr)));
+  return CONSTRUCT_NODE(make_unique<VariableStmt>(move(pattern), move(expr)));
 }
 
 unique_ptr<Expr> Parser::Block(bool can_assign) {

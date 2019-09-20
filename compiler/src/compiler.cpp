@@ -46,20 +46,32 @@ optional<string> Compiler::FromFile(const string& name, vector<uint8_t>& out) {
   return Compile(name, source, out);
 }
 
+// TODO: remove boilerplate
 optional<string> Compiler::Compile(const string& name,
     const string& source, vector<uint8_t>& out) {
   (void)out;
   ErrorReporter reporter(name);
-  auto ast = Parser::Parse(source, reporter);
+  Interner interner;
+  auto ast = Parser::Parse(source, reporter, interner);
 
   if (reporter.HadErrors()) {
     return make_optional(reporter.GetErrors());
   }
 
-  AstPrinter printer(::std::cout);
+  TypeCheck check(reporter, interner);
+  
+  for (const auto& node : ast) {
+    node->Accept(check);
+  }
+
+  if (reporter.HadErrors()) {
+    return make_optional(reporter.GetErrors());
+  }
+  
+  AstPrinter printer(true, ::std::cout, interner);
 
   for (const auto& node : ast) {
-    printer.Visit(*node);
+    node->Accept(printer);
   }
 
   return nullopt;

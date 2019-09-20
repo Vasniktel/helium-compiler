@@ -15,10 +15,11 @@ using ::absl::string_view;
 
 void ParseTest(string_view input, string_view expected, bool success) {
   ErrorReporter reporter("");
+  Interner interner;
   stringstream ss;
-  AstPrinter printer(ss);
+  AstPrinter printer(false, ss, interner);
 
-  auto ast = Parser::Parse(input, reporter);
+  auto ast = Parser::Parse(input, reporter, interner);
 
   if (success) {
     EXPECT_FALSE(reporter.HadErrors());
@@ -27,7 +28,7 @@ void ParseTest(string_view input, string_view expected, bool success) {
   }
 
   for (const auto& node : ast) {
-    printer.Visit(*node);
+    node->Accept(printer);
   }
 
   EXPECT_EQ(ss.str(), expected);
@@ -107,11 +108,20 @@ TEST(Lexer, StringLiteral) {
   PARSE_FAILURE(R"("\")");
 }
 
+TEST(Parser, AtomLiterals) {
+  PARSE_SUCCESS("unit", "(lit unit)");
+  PARSE_SUCCESS("true", "(lit true)");
+  PARSE_SUCCESS("false", "(lit false)");
+}
+
 TEST(Parser, VarStmt) {
-  PARSE_SUCCESS("var k : int \n\n", "(var k : int )");
+  PARSE_SUCCESS("var k : int \n\n", "(var k : int)");
+  PARSE_SUCCESS("var k", "(var k)");
   PARSE_SUCCESS("var k : sdd = (2 + 22)\n", "(var k : sdd (+ (int 2) (int 22)))");
+  PARSE_SUCCESS("var k = 5", "(var k (int 5))");
   PARSE_SUCCESS("var qw \n\n : \n q \n = 4", "(var qw : q (int 4))");
   PARSE_FAILURE("var 34");
+  PARSE_FAILURE("var \n qw \n\n : \n q \n");
 }
 
 TEST(Parser, IfExpr) {

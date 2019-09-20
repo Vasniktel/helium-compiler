@@ -48,9 +48,22 @@ Stmt
 | Expr
 ;
 
+Pattern
+: TypedPattern
+| InferredPattern
+;
+
+TypedPattern
+: Identifier EOL* ':' EOL* Type
+;
+
+InferredPattern
+: Identifier
+;
+
 // TODO: make type specifier optional
 VarStmt
-: 'var' IDENTIFIER EOL* ':' EOL* Type ( EOL* '=' Expr)?
+: 'var' Pattern ( EOL* '=' Expr)?
 ;
 
 Type
@@ -91,6 +104,11 @@ Primary
 | IfExpr
 | BlockExpr
 | WhileExpr
+| UnitExpr
+;
+
+UnitExpr
+: 'unit'
 ;
 
 Assignable

@@ -30,17 +30,19 @@ class Parser final {
   Token prev_token_;
   bool panic_mode_;
   ErrorReporter& reporter_;
+  Interner& interner_;
 
  public:
   Parser() = delete;
-  static std::vector<std::unique_ptr<AstNode>> Parse(absl::string_view source, ErrorReporter& reporter);
+  static std::vector<std::unique_ptr<AstNode>> Parse(
+      absl::string_view source, ErrorReporter& reporter, Interner& interner);
 
  private:
   enum class Precedence;
   struct Rule;
   static const Rule rules_[];
 
-  explicit Parser(absl::string_view source, ErrorReporter& reporter);
+  explicit Parser(absl::string_view source, ErrorReporter& reporter, Interner& interner);
 
   void SkipSpace();
   void MakeToken(TokenType type);
@@ -76,6 +78,9 @@ class Parser final {
 
   template <typename T, typename F>
   std::vector<std::unique_ptr<T>> Sequence(TokenType separator, TokenType closing, F parser);
+
+  std::unique_ptr<Pattern> ParsePattern(bool ignore_eol);
+  std::unique_ptr<Type> ParseType(bool ignore_eol);
 
   // TODO: make better error reporting
   void LexError(absl::string_view msg, int line, int col);

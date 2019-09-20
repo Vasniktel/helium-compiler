@@ -21,12 +21,14 @@ target_sources(compiler
         src/parser/ast.hpp
         src/parser/token.hpp
         src/parser/token.cpp
-        src/module.cpp
-        src/module.hpp
         src/error_reporter.cpp
         src/error_reporter.hpp
         src/parser/ast_printer.cpp
         src/parser/ast_printer.hpp
+        src/type_check.cpp
+        src/type_check.hpp
+        src/type.hpp
+        src/interner.hpp
 
         PUBLIC
         include/compiler.hpp)

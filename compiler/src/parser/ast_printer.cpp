@@ -11,29 +11,47 @@ using ::std::endl;
 using TT = TokenType;
 
 void AstPrinter::Visit(VariableStmt& node) {
-  os_ << "(var " << node.name.lexeme << " : " << node.type.lexeme << ' ';
-  if (node.expr) Visit(*node.expr);
+  os_ << "(var ";
+  node.GetPattern()->Accept(*this);
+  if (node.GetExpr()) {
+    os_ << ' ';
+    node.GetExpr()->Accept(*this);
+  }
   os_ << ')';
 }
 
 void AstPrinter::Visit(BinaryExpr& node) {
-  os_ << '(' << node.op.lexeme << ' ';
-  Visit(*node.left);
+  os_ << '(' << node.Op().lexeme;
+  
+  if (typed_) {
+    os_ << ':';
+    node.GetType()->Accept(*this);
+  }
+  
   os_ << ' ';
-  Visit(*node.right);
+  node.Left()->Accept(*this);
+  os_ << ' ';
+  node.Right()->Accept(*this);
   os_ << ')';
 }
 
 void AstPrinter::Visit(UnaryExpr& node) {
-  os_ << '(' << node.op.lexeme << ' ';
-  Visit(*node.operand);
+  os_ << '(' << node.Op().lexeme;
+
+  if (typed_) {
+    os_ << ':';
+    node.GetType()->Accept(*this);
+  }
+
+  os_ << ' ';
+  node.Operand()->Accept(*this);
   os_ << ')';
 }
 
 void AstPrinter::Visit(LiteralExpr& node) {
   auto name = "";
   
-  switch (node.value.type) {
+  switch (node.Value().type) {
     case TokenType::kInt:
       name = "int";
       break;
@@ -52,47 +70,92 @@ void AstPrinter::Visit(LiteralExpr& node) {
     default: name = "lit";
   }
   
-  os_ << "(" << name << ' ' << node.value.lexeme << ")";
+  os_ << "(" << name;
+
+  if (typed_) {
+    os_ << ':';
+    node.GetType()->Accept(*this);
+  }
+
+  os_ << ' ' << node.Value().lexeme << ")";
 }
 
 void AstPrinter::Visit(IfExpr& node) {
-  os_ << "(if ";
-  Visit(*node.condition);
+  os_ << "(if";
+
+  if (typed_) {
+    os_ << ':';
+    node.GetType()->Accept(*this);
+  }
+
+  os_ << ' ';
+  node.Cond()->Accept(*this);
   os_ << " then ";
-  Visit(*node.then_branch);
-  if (node.else_branch) {
+  node.Then()->Accept(*this);
+  if (node.Else()) {
     os_ << " else ";
-    Visit(*node.else_branch);
+    node.Else()->Accept(*this);
   }
 
   os_ << ")";
 }
 
 void AstPrinter::Visit(WhileExpr& node) {
-  os_ << "(while ";
-  Visit(*node.condition);
+  os_ << "(while";
+
+  if (typed_) {
+    os_ << ':';
+    node.GetType()->Accept(*this);
+  }
+
+  os_ << ' ';
+  node.Cond()->Accept(*this);
   os_ << " loop ";
-  Visit(*node.body);
+  node.Body()->Accept(*this);
   os_ << ')';
 }
 
 void AstPrinter::Visit(BlockExpr& node) {
   os_ << "(block";
 
-  for (const auto& stmt : node.body) {
+  if (typed_) {
+    os_ << ':';
+    node.GetType()->Accept(*this);
+  }
+  
+  for (const auto& stmt : node.Body()) {
     os_ << ' ';
-    Visit(*stmt);
+    stmt->Accept(*this);
   }
 
   os_ << ')';
 }
 
 void AstPrinter::Visit(AssignExpr& node) {
-  os_ << "(= ";
-  Visit(*node.dest);
+  os_ << "(=";
+  
+  if (typed_) {
+    os_ << ':';
+    node.GetType()->Accept(*this);
+  }
+
   os_ << ' ';
-  Visit(*node.expr);
+  node.Dest()->Accept(*this);
+  os_ << ' ';
+  node.Expr()->Accept(*this);
   os_ << ')';
+}
+
+void AstPrinter::Visit(SingleType& type) {
+  os_ << *interner_.LookUp(type.GetTypeData()); // optional should not be empty
+}
+
+void AstPrinter::Visit(TypedPattern& pattern) {
+  os_ << pattern.GetName().lexeme;
+  if (pattern.GetType()) {
+    os_ << " : ";
+    pattern.GetType()->Accept(*this);
+  }
 }
 
 }

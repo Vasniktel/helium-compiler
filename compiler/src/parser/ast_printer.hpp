@@ -7,18 +7,23 @@
 
 #include <ostream>
 #include "ast.hpp"
+#include "type.hpp"
+#include "type_check.hpp"
 
 namespace helium {
 
-class AstPrinter : public AstVisitor {
+class AstPrinter : public AstVisitor, public PatternVisitor, public TypeVisitor {
+  bool typed_;
   std::ostream& os_;
+  const Interner& interner_;
 
  public:
-  explicit AstPrinter(std::ostream& os)
-  : os_(os)
+  explicit AstPrinter(bool typed, std::ostream& os, const Interner& interner)
+  : typed_(typed),
+    os_(os),
+    interner_(interner)
   {}
 
-  using AstVisitor::Visit;
   void Visit(VariableStmt& node) override;
   void Visit(BinaryExpr& node) override;
   void Visit(UnaryExpr& node) override;
@@ -27,6 +32,8 @@ class AstPrinter : public AstVisitor {
   void Visit(IfExpr& node) override;
   void Visit(WhileExpr& node) override;
   void Visit(AssignExpr& node) override;
+  void Visit(TypedPattern& pattern) override;
+  void Visit(SingleType& type) override;
 };
 
 }

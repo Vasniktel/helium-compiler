@@ -11,5 +11,4 @@ ExternalProject_Add(googletest
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
         INSTALL_COMMAND ""
-        TEST_COMMAND ""
-        )
+        TEST_COMMAND "")

@@ -7,28 +7,24 @@
 
 #include <vector>
 #include <utility>
+#include <type.hpp>
 #include "absl/memory/memory.h"
 #include "token.hpp"
 
 namespace helium {
 
-struct AstNode;
-struct Expr;
-struct VariableStmt;
-struct BinaryExpr;
-struct AssignExpr;
-struct UnaryExpr;
-struct LiteralExpr;
-struct BlockExpr;
-struct IfExpr;
-struct WhileExpr;
-
-class AstVisitor;
-
-struct AstNode {
-  virtual ~AstNode() = default;
-  virtual void Accept(AstVisitor& visitor) = 0;
-};
+class AstNode;
+class Expr;
+class VariableStmt;
+class BinaryExpr;
+class AssignExpr;
+class UnaryExpr;
+class LiteralExpr;
+class BlockExpr;
+class IfExpr;
+class WhileExpr;
+class Pattern;
+class TypedPattern;
 
 class AstVisitor {
  public:
@@ -41,132 +37,227 @@ class AstVisitor {
   virtual void Visit(IfExpr&) = 0;
   virtual void Visit(WhileExpr&) = 0;
   virtual void Visit(AssignExpr&) = 0;
-  virtual void Visit(AstNode& node) {
-    node.Accept(*this);
+};
+
+class PatternVisitor {
+ public:
+  virtual ~PatternVisitor() = default;
+  virtual void Visit(TypedPattern&) = 0;
+};
+
+class AstNode {
+ public:
+  virtual ~AstNode() = default;
+  virtual void Accept(AstVisitor& visitor) = 0;
+  virtual bool IsExpr() const { return false; }
+};
+
+class Expr : public AstNode {
+ protected:
+  ::std::unique_ptr<Type> type_;
+
+ public:
+  virtual const ::std::unique_ptr<Type>& GetType() const {
+    return type_;
+  }
+
+  bool IsExpr() const final { return true; }
+
+  virtual void SetType(::std::unique_ptr<Type> type) {
+    type_ = ::std::move(type);
   }
 };
 
-struct Expr : public AstNode {
+class Pattern {
+ public:
+  virtual ~Pattern() = default;
+  virtual void Accept(PatternVisitor& visitor) = 0;
 };
 
-struct VariableStmt final : public AstNode {
-  Token name;
-  Token type; // TODO: implement support for type inference
-  std::unique_ptr<Expr> expr;
+class TypedPattern : public Pattern {
+  Token name_;
+  ::std::unique_ptr<Type> type_; // Might be null, in which case type is inferred
 
+ public:
+  TypedPattern() = delete;
+  TypedPattern(const Token& name, ::std::unique_ptr<Type> type)
+  : name_(name),
+    type_(::std::move(type))
+  {}
+
+  void Accept(PatternVisitor& visitor) override {
+    visitor.Visit(*this);
+  }
+
+  const ::std::unique_ptr<Type>& GetType() const {
+    return type_;
+  }
+
+  const Token& GetName() const {
+    return name_;
+  }
+};
+
+class VariableStmt final : public AstNode {
+  ::std::unique_ptr<Pattern> pattern_;
+  ::std::unique_ptr<Expr> expr_;
+
+ public:
   VariableStmt() = delete;
-  VariableStmt(Token name, Token type, std::unique_ptr<Expr> expr)
-  : name(name),
-    type(type),
-    expr(std::move(expr))
+  VariableStmt(::std::unique_ptr<Pattern> pattern, ::std::unique_ptr<Expr> expr)
+  : pattern_(::std::move(pattern)),
+    expr_(::std::move(expr))
   {}
+
+  const ::std::unique_ptr<Pattern>& GetPattern() const {
+    return pattern_;
+  }
+
+  const ::std::unique_ptr<Expr>& GetExpr() const {
+    return expr_;
+  }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
   }
 };
 
-struct BinaryExpr final : public Expr {
-  std::unique_ptr<Expr> left;
-  Token op;
-  std::unique_ptr<Expr> right;
+class BinaryExpr final : public Expr {
+  ::std::unique_ptr<Expr> left_;
+  Token op_;
+  ::std::unique_ptr<Expr> right_;
 
+ public:
   BinaryExpr() = delete;
-  BinaryExpr(std::unique_ptr<Expr> left, Token op, std::unique_ptr<Expr> right)
-  : left(std::move(left)),
-    op(op),
-    right(std::move(right))
+  BinaryExpr(::std::unique_ptr<Expr> left, Token op, ::std::unique_ptr<Expr> right)
+  : left_(::std::move(left)),
+    op_(op),
+    right_(::std::move(right))
   {}
+
+  const ::std::unique_ptr<Expr>& Left() const { return left_; }
+  const Token& Op() const { return op_; }
+  const ::std::unique_ptr<Expr>& Right() const { return right_; }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
   }
 };
 
-struct AssignExpr final : public Expr {
-  std::unique_ptr<Expr> dest;
-  std::unique_ptr<Expr> expr;
+class AssignExpr final : public Expr {
+  ::std::unique_ptr<Expr> dest_;
+  ::std::unique_ptr<Expr> expr_;
 
+ public:
   AssignExpr() = delete;
-  AssignExpr(std::unique_ptr<Expr> dest, std::unique_ptr<Expr> expr)
-  : dest(std::move(dest)),
-    expr(std::move(expr))
+  AssignExpr(::std::unique_ptr<Expr> dest, ::std::unique_ptr<Expr> expr)
+  : dest_(::std::move(dest)),
+    expr_(::std::move(expr))
   {}
+
+  const ::std::unique_ptr<Expr>& Dest() const {
+    return dest_;
+  }
+
+  const ::std::unique_ptr<Expr>& Expr() const {
+    return expr_;
+  }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
   }
 };
 
-struct UnaryExpr final : public Expr {
-  Token op;
-  std::unique_ptr<Expr> operand;
+class UnaryExpr final : public Expr {
+  Token op_;
+  ::std::unique_ptr<Expr> operand_;
 
+ public:
   UnaryExpr() = delete;
-  UnaryExpr(Token op, std::unique_ptr<Expr> operand)
-  : op(op),
-    operand(std::move(operand))
+  UnaryExpr(Token op, ::std::unique_ptr<Expr> operand)
+  : op_(op),
+    operand_(::std::move(operand))
   {}
+
+  const Token& Op() const { return op_; }
+  const ::std::unique_ptr<Expr>& Operand() const { return operand_; }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
   }
 };
 
-struct LiteralExpr final : public Expr {
-  Token value;
+class LiteralExpr final : public Expr {
+  Token value_;
 
+ public:
   LiteralExpr() = delete;
   explicit LiteralExpr(Token value)
-  : value(value)
+  : value_(value)
   {}
+
+  const Token& Value() const { return value_; }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
   }
 };
 
-struct BlockExpr final : public Expr {
+class BlockExpr final : public Expr {
   // TODO: decide to use absl::inlined_vector
-  std::vector<std::unique_ptr<AstNode>> body;
+  ::std::vector<::std::unique_ptr<AstNode>> body_;
 
+ public:
   BlockExpr() = delete;
-  explicit BlockExpr(std::vector<std::unique_ptr<AstNode>>&& body)
-  : body(std::move(body))
+  explicit BlockExpr(::std::vector<::std::unique_ptr<AstNode>>&& body)
+  : body_(::std::move(body))
   {}
+
+  const ::std::vector<::std::unique_ptr<AstNode>>& Body() const {
+    return body_;
+  }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
   }
 };
 
-struct IfExpr final : public Expr {
-  std::unique_ptr<Expr> condition;
-  std::unique_ptr<Expr> then_branch;
-  std::unique_ptr<Expr> else_branch;
+class IfExpr final : public Expr {
+  ::std::unique_ptr<Expr> cond_;
+  ::std::unique_ptr<Expr> then_;
+  ::std::unique_ptr<Expr> else_;
 
+ public:
   IfExpr() = delete;
-  IfExpr(std::unique_ptr<Expr> condition, std::unique_ptr<Expr> then_branch,
-         std::unique_ptr<Expr> else_branch)
-  : condition(std::move(condition)),
-    then_branch(std::move(then_branch)),
-    else_branch(std::move(else_branch))
+  IfExpr(::std::unique_ptr<Expr> condition, ::std::unique_ptr<Expr> then_branch,
+         ::std::unique_ptr<Expr> else_branch)
+  : cond_(::std::move(condition)),
+    then_(::std::move(then_branch)),
+    else_(::std::move(else_branch))
   {}
+
+  const ::std::unique_ptr<Expr>& Cond() const { return cond_; }
+  const ::std::unique_ptr<Expr>& Then() const { return then_; }
+  const ::std::unique_ptr<Expr>& Else() const { return else_; }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
   }
 };
 
-struct WhileExpr final : public Expr {
-  std::unique_ptr<Expr> condition;
-  std::unique_ptr<Expr> body;
+class WhileExpr final : public Expr {
+  ::std::unique_ptr<Expr> cond_;
+  ::std::unique_ptr<Expr> body_;
 
+ public:
   WhileExpr() = delete;
-  WhileExpr(std::unique_ptr<Expr> condition, std::unique_ptr<Expr> body)
-  : condition(std::move(condition)),
-    body(std::move(body))
+  WhileExpr(::std::unique_ptr<Expr> condition, ::std::unique_ptr<Expr> body)
+  : cond_(::std::move(condition)),
+    body_(::std::move(body))
   {}
+
+  const ::std::unique_ptr<Expr>& Cond() const { return cond_; }
+  const ::std::unique_ptr<Expr>& Body() const { return body_; }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
