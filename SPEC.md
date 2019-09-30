@@ -61,9 +61,9 @@ InferredPattern
 : Identifier
 ;
 
-// TODO: make type specifier optional
+// TODO: make type initializer optional
 VarStmt
-: 'var' Pattern ( EOL* '=' Expr)?
+: 'var' Pattern EOL* '=' Expr
 ;
 
 Type
