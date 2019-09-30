@@ -58,9 +58,6 @@ void AstPrinter::Visit(LiteralExpr& node) {
     case TokenType::kReal:
       name = "real";
       break;
-    case TokenType::kIdentifier:
-      name = "id";
-      break;
     case TokenType::kString:
       name = "string";
       break;
@@ -78,6 +75,17 @@ void AstPrinter::Visit(LiteralExpr& node) {
   }
 
   os_ << ' ' << node.Value().lexeme << ")";
+}
+
+void AstPrinter::Visit(IdentifierExpr& node) {
+  os_ << "(id";
+
+  if (typed_) {
+    os_ << ':';
+    node.GetType()->Accept(*this);
+  }
+
+  os_ << ' ' << node.Value().lexeme << ')';
 }
 
 void AstPrinter::Visit(IfExpr& node) {
@@ -156,6 +164,10 @@ void AstPrinter::Visit(TypedPattern& pattern) {
     os_ << " : ";
     pattern.GetType()->Accept(*this);
   }
+}
+
+void AstPrinter::Visit(ErrorType&) {
+  os_ << "_error";
 }
 
 }

@@ -7,8 +7,8 @@
 
 #include <ostream>
 #include "ast.hpp"
-#include "type.hpp"
-#include "type_check.hpp"
+#include "sema/type.hpp"
+#include "sema/type_check.hpp"
 
 namespace helium {
 
@@ -28,12 +28,14 @@ class AstPrinter : public AstVisitor, public PatternVisitor, public TypeVisitor 
   void Visit(BinaryExpr& node) override;
   void Visit(UnaryExpr& node) override;
   void Visit(LiteralExpr& node) override;
+  void Visit(IdentifierExpr& node) override;
   void Visit(BlockExpr& node) override;
   void Visit(IfExpr& node) override;
   void Visit(WhileExpr& node) override;
   void Visit(AssignExpr& node) override;
   void Visit(TypedPattern& pattern) override;
   void Visit(SingleType& type) override;
+  void Visit(ErrorType& type) override;
 };
 
 }

@@ -302,19 +302,19 @@ const Parser::Rule Parser::rules_[] = {
     [TT(kEol)]   = {nullptr, nullptr, Precedence::kNone},
     [TT(kError)] = {nullptr, nullptr, Precedence::kNone},
 
-    [TT(kChar)]       = {&Parser::Literal, nullptr, Precedence::kNone},
-    [TT(kInt)]        = {&Parser::Literal, nullptr, Precedence::kNone},
-    [TT(kReal)]       = {&Parser::Literal, nullptr, Precedence::kNone},
-    [TT(kString)]     = {&Parser::Literal, nullptr, Precedence::kNone},
-    [TT(kIdentifier)] = {&Parser::Literal, nullptr, Precedence::kNone},
+    [TT(kChar)]       = {&Parser::Literal,    nullptr, Precedence::kNone},
+    [TT(kInt)]        = {&Parser::Literal,    nullptr, Precedence::kNone},
+    [TT(kReal)]       = {&Parser::Literal,    nullptr, Precedence::kNone},
+    [TT(kString)]     = {&Parser::Literal,    nullptr, Precedence::kNone},
+    [TT(kIdentifier)] = {&Parser::Identifier, nullptr, Precedence::kNone},
+    [TT(kTrue)]       = {&Parser::Literal,    nullptr, Precedence::kNone},
+    [TT(kFalse)]      = {&Parser::Literal,    nullptr, Precedence::kNone},
+    [TT(kUnit)]       = {&Parser::Literal,    nullptr, Precedence::kNone},
 
     [TT(kVar)]   = {nullptr,          nullptr, Precedence::kNone},
     [TT(kWhile)] = {&Parser::While,   nullptr, Precedence::kNone},
     [TT(kIf)]    = {&Parser::If,      nullptr, Precedence::kNone},
     [TT(kElse)]  = {nullptr,          nullptr, Precedence::kNone},
-    [TT(kTrue)]  = {&Parser::Literal, nullptr, Precedence::kNone},
-    [TT(kFalse)] = {&Parser::Literal, nullptr, Precedence::kNone},
-    [TT(kUnit)]  = {&Parser::Literal, nullptr, Precedence::kNone},
 
     [TT(kPlus)]       = {&Parser::Unary,    &Parser::Binary, Precedence::kAdd},
     [TT(kMinus)]      = {&Parser::Unary,    &Parser::Binary, Precedence::kAdd},
@@ -440,18 +440,21 @@ unique_ptr<Expr> Parser::Unary(bool can_assign) {
   return CONSTRUCT_NODE(make_unique<UnaryExpr>(op, move(operand)));
 }
 
-unique_ptr<Expr> Parser::Literal(bool can_assign) {
-  auto token = prev_token_;
-  auto literal = make_unique<LiteralExpr>(prev_token_);
+unique_ptr<Expr> Parser::Identifier(bool can_assign) {
+  auto node = make_unique<IdentifierExpr>(prev_token_);
 
-  if (can_assign && token.type == TT::kIdentifier &&
-      MatchToken(TT::kEqual, false)) {
+  if (can_assign && MatchToken(TT::kEqual, false)) {
     unique_ptr<Expr> expr;
     PARSE_EXPRESSION(expr, Precedence::kAssign, false);
-    return CONSTRUCT_NODE(make_unique<AssignExpr>(move(literal), move(expr)));
+    return CONSTRUCT_NODE(make_unique<AssignExpr>(move(node), move(expr)));
   }
 
-  return move(literal);
+  return move(node);
+}
+
+unique_ptr<Expr> Parser::Literal(bool can_assign) {
+  IGNORE(can_assign);
+  return make_unique<LiteralExpr>(prev_token_);
 }
 
 unique_ptr<Expr> Parser::Grouping(bool can_assign) {
@@ -494,11 +497,11 @@ unique_ptr<AstNode> Parser::Variable() {
 
   auto pattern = ParsePattern(false);
 
-  unique_ptr<Expr> expr;
-  if (MatchToken(TT::kEqual, true)) {
-    PARSE_EXPRESSION(expr, Precedence::kAssign, false);
-  }
+  ConsumeToken(TT::kEqual, true, "Initializer expected");
 
+  unique_ptr<Expr> expr;
+  PARSE_EXPRESSION(expr, Precedence::kAssign, false);
+int
   return CONSTRUCT_NODE(make_unique<VariableStmt>(move(pattern), move(expr)));
 }
 

@@ -71,6 +71,7 @@ class Parser final {
   std::unique_ptr<Expr> Binary(std::unique_ptr<Expr> left);
   std::unique_ptr<Expr> Unary(bool can_assign);
   std::unique_ptr<Expr> Literal(bool can_assign);
+  std::unique_ptr<Expr> Identifier(bool can_assign);
   std::unique_ptr<Expr> While(bool can_assign);
   std::unique_ptr<Expr> If(bool can_assign);
   std::unique_ptr<Expr> Grouping(bool can_assign);

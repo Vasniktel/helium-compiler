@@ -19,14 +19,14 @@ enum class TokenType {
   kReal,
   kString,
   kIdentifier,
+  kTrue,
+  kFalse,
+  kUnit,
 
   kVar,
   kWhile,
   kIf,
   kElse,
-  kTrue,
-  kFalse,
-  kUnit,
 
   kPlus,
   kMinus,

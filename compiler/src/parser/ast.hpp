@@ -7,7 +7,7 @@
 
 #include <vector>
 #include <utility>
-#include <type.hpp>
+#include <sema/type.hpp>
 #include "absl/memory/memory.h"
 #include "token.hpp"
 
@@ -20,6 +20,7 @@ class BinaryExpr;
 class AssignExpr;
 class UnaryExpr;
 class LiteralExpr;
+class IdentifierExpr;
 class BlockExpr;
 class IfExpr;
 class WhileExpr;
@@ -29,20 +30,21 @@ class TypedPattern;
 class AstVisitor {
  public:
   virtual ~AstVisitor() = default;
-  virtual void Visit(VariableStmt&) = 0;
-  virtual void Visit(BinaryExpr&) = 0;
-  virtual void Visit(UnaryExpr&) = 0;
-  virtual void Visit(LiteralExpr&) = 0;
-  virtual void Visit(BlockExpr&) = 0;
-  virtual void Visit(IfExpr&) = 0;
-  virtual void Visit(WhileExpr&) = 0;
-  virtual void Visit(AssignExpr&) = 0;
+  virtual void Visit(VariableStmt& node) = 0;
+  virtual void Visit(BinaryExpr& node) = 0;
+  virtual void Visit(UnaryExpr& node) = 0;
+  virtual void Visit(LiteralExpr& node) = 0;
+  virtual void Visit(IdentifierExpr& node) = 0;
+  virtual void Visit(BlockExpr& node) = 0;
+  virtual void Visit(IfExpr& node) = 0;
+  virtual void Visit(WhileExpr& node) = 0;
+  virtual void Visit(AssignExpr& node) = 0;
 };
 
 class PatternVisitor {
  public:
   virtual ~PatternVisitor() = default;
-  virtual void Visit(TypedPattern&) = 0;
+  virtual void Visit(TypedPattern& type) = 0;
 };
 
 class AstNode {
@@ -51,6 +53,8 @@ class AstNode {
   virtual void Accept(AstVisitor& visitor) = 0;
   virtual bool IsExpr() const { return false; }
 };
+
+using AstTree = ::std::vector<::std::unique_ptr<AstNode>>;
 
 class Expr : public AstNode {
  protected:
@@ -182,11 +186,19 @@ class UnaryExpr final : public Expr {
   const Token& Op() const { return op_; }
   const ::std::unique_ptr<Expr>& Operand() const { return operand_; }
 
-  void Accept(AstVisitor& visitor) override {
+  void  Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
   }
 };
 
+// One of:
+//  kChar,
+//  kInt,
+//  kReal,
+//  kString,
+//  kTrue,
+//  kFalse,
+//  kUnit
 class LiteralExpr final : public Expr {
   Token value_;
 
@@ -197,6 +209,30 @@ class LiteralExpr final : public Expr {
   {}
 
   const Token& Value() const { return value_; }
+
+  void Accept(AstVisitor& visitor) override {
+    visitor.Visit(*this);
+  }
+};
+
+class IdentifierExpr final : public Expr {
+  Token value_;
+
+  // depth in the locals array in vm
+  // TODO: reconsider this when functions are added
+  uint16_t local_depth_;
+
+ public:
+  IdentifierExpr() = delete;
+  explicit IdentifierExpr(const Token& value)
+  : value_(value),
+    local_depth_(0)
+  {}
+
+  const Token& Value() const { return value_; }
+
+  uint16_t GetDepth() const { return local_depth_; }
+  void SetDepth(uint16_t depth) { local_depth_ = depth; }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
