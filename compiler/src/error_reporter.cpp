@@ -31,4 +31,8 @@ void ErrorReporter::ErrorAt(string_view msg, const Token& token) {
   }
 }
 
+void ErrorReporter::Error(string_view msg) {
+  StrAppendFormat(&buffer_, "Error in %s:\n\t%s\n", file_name_, msg);
+}
+
 }

@@ -32,6 +32,8 @@ class ErrorReporter {
   // TODO: think about better formatting
   void ErrorAt(absl::string_view msg, int line, int col);
   void ErrorAt(absl::string_view msg, const Token& token);
+
+  void Error(absl::string_view msg);
 };
 
 }
