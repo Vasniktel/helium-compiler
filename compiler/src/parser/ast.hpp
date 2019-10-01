@@ -10,41 +10,52 @@
 #include <sema/type.hpp>
 #include "absl/memory/memory.h"
 #include "token.hpp"
+#include "visitor.hpp"
 
 namespace helium {
 
-class AstNode;
-class Expr;
-class VariableStmt;
-class BinaryExpr;
-class AssignExpr;
-class UnaryExpr;
-class LiteralExpr;
-class IdentifierExpr;
-class BlockExpr;
-class IfExpr;
-class WhileExpr;
-class Pattern;
-class TypedPattern;
-
-class AstVisitor {
- public:
-  virtual ~AstVisitor() = default;
-  virtual void Visit(VariableStmt& node) = 0;
-  virtual void Visit(BinaryExpr& node) = 0;
-  virtual void Visit(UnaryExpr& node) = 0;
-  virtual void Visit(LiteralExpr& node) = 0;
-  virtual void Visit(IdentifierExpr& node) = 0;
-  virtual void Visit(BlockExpr& node) = 0;
-  virtual void Visit(IfExpr& node) = 0;
-  virtual void Visit(WhileExpr& node) = 0;
-  virtual void Visit(AssignExpr& node) = 0;
+enum class IntrinsicOp {
+  kNone, // used in constructor
+  kRealAdd,
+  kIntAdd,
+  kRealSub,
+  kIntSub,
+  kRealMul,
+  kIntMul,
+  kRealDiv,
+  kIntDiv,
+  kRealNeg,
+  kIntNeg
 };
 
-class PatternVisitor {
+class Pattern {
  public:
-  virtual ~PatternVisitor() = default;
-  virtual void Visit(TypedPattern& type) = 0;
+  virtual ~Pattern() = default;
+  virtual void Accept(PatternVisitor& visitor) = 0;
+};
+
+class TypedPattern : public Pattern {
+  Token name_;
+  ::std::unique_ptr<Type> type_; // Might be null, in which case type is inferred
+
+ public:
+  TypedPattern() = delete;
+  TypedPattern(const Token& name, ::std::unique_ptr<Type> type)
+      : name_(name),
+        type_(::std::move(type))
+  {}
+
+  void Accept(PatternVisitor& visitor) override {
+    visitor.Visit(*this);
+  }
+
+  const ::std::unique_ptr<Type>& GetType() const {
+    return type_;
+  }
+
+  const Token& GetName() const {
+    return name_;
+  }
 };
 
 class AstNode {
@@ -69,36 +80,6 @@ class Expr : public AstNode {
 
   virtual void SetType(::std::unique_ptr<Type> type) {
     type_ = ::std::move(type);
-  }
-};
-
-class Pattern {
- public:
-  virtual ~Pattern() = default;
-  virtual void Accept(PatternVisitor& visitor) = 0;
-};
-
-class TypedPattern : public Pattern {
-  Token name_;
-  ::std::unique_ptr<Type> type_; // Might be null, in which case type is inferred
-
- public:
-  TypedPattern() = delete;
-  TypedPattern(const Token& name, ::std::unique_ptr<Type> type)
-  : name_(name),
-    type_(::std::move(type))
-  {}
-
-  void Accept(PatternVisitor& visitor) override {
-    visitor.Visit(*this);
-  }
-
-  const ::std::unique_ptr<Type>& GetType() const {
-    return type_;
-  }
-
-  const Token& GetName() const {
-    return name_;
   }
 };
 
@@ -130,18 +111,23 @@ class BinaryExpr final : public Expr {
   ::std::unique_ptr<Expr> left_;
   Token op_;
   ::std::unique_ptr<Expr> right_;
+  IntrinsicOp intrinsic_;
 
  public:
   BinaryExpr() = delete;
   BinaryExpr(::std::unique_ptr<Expr> left, Token op, ::std::unique_ptr<Expr> right)
   : left_(::std::move(left)),
     op_(op),
-    right_(::std::move(right))
+    right_(::std::move(right)),
+    intrinsic_(IntrinsicOp::kNone)
   {}
 
   const ::std::unique_ptr<Expr>& Left() const { return left_; }
   const Token& Op() const { return op_; }
   const ::std::unique_ptr<Expr>& Right() const { return right_; }
+
+  IntrinsicOp GetIntrinsic() const { return intrinsic_; }
+  void SetIntrinsic(IntrinsicOp value) { intrinsic_ = value; }
 
   void Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
@@ -175,16 +161,21 @@ class AssignExpr final : public Expr {
 class UnaryExpr final : public Expr {
   Token op_;
   ::std::unique_ptr<Expr> operand_;
+  IntrinsicOp intrinsic_;
 
  public:
   UnaryExpr() = delete;
   UnaryExpr(Token op, ::std::unique_ptr<Expr> operand)
   : op_(op),
-    operand_(::std::move(operand))
+    operand_(::std::move(operand)),
+    intrinsic_(IntrinsicOp::kNone)
   {}
 
   const Token& Op() const { return op_; }
   const ::std::unique_ptr<Expr>& Operand() const { return operand_; }
+
+  IntrinsicOp GetIntrinsic() const { return intrinsic_; }
+  void SetIntrinsic(IntrinsicOp value) { intrinsic_ = value; }
 
   void  Accept(AstVisitor& visitor) override {
     visitor.Visit(*this);
