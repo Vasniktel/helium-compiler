@@ -86,6 +86,7 @@ class TypeCheck : public AstVisitor {
   void Visit(BinaryExpr& expr) override;
   void Visit(UnaryExpr& expr) override;
   void Visit(LiteralExpr& expr) override;
+  void Visit(IdentifierExpr& expr) override;
   void Visit(AssignExpr& expr) override;
   void Visit(BlockExpr& expr) override;
   void Visit(IfExpr& expr) override;
@@ -93,6 +94,11 @@ class TypeCheck : public AstVisitor {
 
  private:
   ::absl::optional<const Type*> Lookup(absl::string_view name);
+
+  // Set intrinsic on binary and unary expressions
+  // Expect exprs already have been type checked
+  void SetIntrinsic(BinaryExpr& expr) const;
+  void SetIntrinsic(UnaryExpr& expr) const;
 };
 
 }
