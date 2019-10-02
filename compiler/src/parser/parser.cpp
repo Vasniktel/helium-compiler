@@ -446,7 +446,7 @@ unique_ptr<Expr> Parser::Identifier(bool can_assign) {
   if (can_assign && MatchToken(TT::kEqual, false)) {
     unique_ptr<Expr> expr;
     PARSE_EXPRESSION(expr, Precedence::kAssign, false);
-    return CONSTRUCT_NODE(make_unique<AssignExpr>(move(node), move(expr)));
+    return CONSTRUCT_NODE(make_unique<AssignExpr>(nullptr, move(node), move(expr)));
   }
 
   return move(node);

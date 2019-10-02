@@ -135,18 +135,24 @@ class BinaryExpr final : public Expr {
 };
 
 class AssignExpr final : public Expr {
-  ::std::unique_ptr<Expr> dest_;
+  ::std::unique_ptr<Expr> receiver_;
+  Token name_;
   ::std::unique_ptr<Expr> expr_;
 
  public:
   AssignExpr() = delete;
-  AssignExpr(::std::unique_ptr<Expr> dest, ::std::unique_ptr<Expr> expr)
-  : dest_(::std::move(dest)),
+  AssignExpr(::std::unique_ptr<Expr> receiver, const Token& name, ::std::unique_ptr<Expr> expr)
+  : receiver_(::std::move(receiver)),
+    name_(name),
     expr_(::std::move(expr))
   {}
 
-  const ::std::unique_ptr<Expr>& Dest() const {
-    return dest_;
+  const ::std::unique_ptr<Expr>& Receiver() const {
+    return receiver_;
+  }
+
+  const Token& Name() const {
+    return name_;
   }
 
   const ::std::unique_ptr<Expr>& Expr() const {

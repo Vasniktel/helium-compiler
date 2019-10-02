@@ -147,9 +147,8 @@ void AstPrinter::Visit(AssignExpr& node) {
     node.GetType()->Accept(*this);
   }
 
-  os_ << ' ';
-  node.Dest()->Accept(*this);
-  os_ << ' ';
+  // TODO: fix when classes are introduced
+  os_ << ' ' << node.Name().lexeme << ' ';
   node.Expr()->Accept(*this);
   os_ << ')';
 }
